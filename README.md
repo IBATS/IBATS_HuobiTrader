@@ -1,5 +1,5 @@
-# ABAT_trader_4_blockchain
-Auto Backtest Analysis Trade Framework （简称ABAT）支持期货、数字货币进行量化交易，集成回测、分析、交易于一体。与市场上同类回测框架相比，有如下优势：
+# IBATS Huobi Trader
+Integration Backtest Analysis Trade System （简称IBATS）支持期货、数字货币进行量化交易，集成回测、分析、交易于一体。与市场上同类回测框架相比，有如下优势：
 
 - 更加完备的支持多品种、多周期策略交易
 - 对跨周期策略回测更加真实，回测模式下，将不同周期数据进行时间排序推送，从而激活对应的周期的响应函数
