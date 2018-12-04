@@ -7,14 +7,14 @@
 @contact : mmmaaaggg@163.com
 @desc    : 用于对系统配置的环境进行检测，检查是否环境可用，包括mysql、redis等
 """
-from config import Config
-from abat.common import PeriodType
+from ibats_common.common import PeriodType
 import threading
 import json
 import time
 import logging
-from abat.utils.fh_utils import bytes_2_str
-from abat.utils.redis import get_redis, get_channel
+from ibats_common.utils.mess import bytes_2_str
+from ibats_common.utils.redis import get_channel
+from ibats_huobi_trader.backend import get_redis
 logger = logging.getLogger()
 _signal = {}
 
@@ -44,12 +44,12 @@ def check_redis():
     timer_t = threading.Thread(target=_timer, args=(channel,))
     timer_t.start()
 
-    def _receiver(channel):
+    def _receiver(a_channel):
         # 接收订阅的行情，成功接收后退出
         global _signal
         redis_client = get_redis()
         pub_sub = redis_client.pubsub()
-        pub_sub.psubscribe(channel)
+        pub_sub.psubscribe(a_channel)
         for item in pub_sub.listen():
             logger.debug("接收成功 %s", item)
             if item['type'] == 'pmessage':
@@ -86,5 +86,5 @@ def check():
 
 
 if __name__ == "__main__":
-    is_ok = check()
-    logger.info("全部检测完成，%s", is_ok)
+    is_ok1 = check()
+    logger.info("全部检测完成，%s", is_ok1)

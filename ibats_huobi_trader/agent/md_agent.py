@@ -10,20 +10,21 @@
 import json
 import time
 from queue import Queue
-from abat.md import MdAgentBase, register_backtest_md_agent, register_realtime_md_agent
-from abat.utils.fh_utils import bytes_2_str
-from abat.common import PeriodType
-from backend import engine_md
-from abat.utils.redis import get_redis, get_channel
-from backend.orm import MDMin1
-from abat.utils.db_utils import with_db_session
+from ibats_common.md import MdAgentBase, md_agent
+from ibats_common.utils.mess import bytes_2_str
+from ibats_common.common import PeriodType, RunMode, ExchangeName
+from ibats_huobi_trader.backend import engine_md
+from ibats_common.utils.redis import get_channel
+from ibats_huobi_trader.backend import get_redis
+from ibats_huobi_trader.backend.orm import MDMin1
+from ibats_common.utils.db import with_db_session
 import pandas as pd
-from config import Config
+from ibats_huobi_trader.config import config
 
 
 class MdAgentPub(MdAgentBase):
 
-    def load_history(self, date_from=None, date_to=None, load_md_count=None)->(pd.DataFrame, dict):
+    def load_history(self, date_from=None, date_to=None, load_md_count=None) -> (pd.DataFrame, dict):
         """
         从mysql中加载历史数据
         实时行情推送时进行合并后供数据分析使用
@@ -100,11 +101,11 @@ class MdAgentPub(MdAgentBase):
         # 加载历史数据
         md_df = pd.read_sql(sql_str, engine_md, params=params)
         # self.md_df = md_df
-        ret_data = {'md_df': md_df, 'datetime_key': 'ts_start'}
+        ret_data = {'md_df': md_df, 'datetime_key': 'ts_start', 'symbol_key': 'symbol', 'close_key': 'close'}
         return ret_data
 
 
-@register_realtime_md_agent
+@md_agent(RunMode.Realtime, ExchangeName.HuoBi, is_default=False)
 class MdAgentRealtime(MdAgentPub):
 
     def __init__(self, instrument_id_set, md_period: PeriodType, name=None, init_load_md_count=None,
@@ -128,9 +129,9 @@ class MdAgentRealtime(MdAgentPub):
         super().subscribe(instrument_id_set)
         if instrument_id_set is None:
             instrument_id_set = self.instrument_id_set
-        # channel_head = Config.REDIS_CHANNEL[self.md_period]
+        # channel_head = config.REDIS_CHANNEL[self.md_period]
         # channel_list = [channel_head + instrument_id for instrument_id in instrument_id_set]
-        channel_list = [get_channel(Config.MARKET_NAME, self.md_period, instrument_id)
+        channel_list = [get_channel(config.MARKET_NAME, self.md_period, instrument_id)
                         for instrument_id in instrument_id_set]
         self.pub_sub.psubscribe(*channel_list)
 
@@ -159,9 +160,9 @@ class MdAgentRealtime(MdAgentPub):
         else:
             super().unsubscribe(instrument_id_set)
 
-        # channel_head = Config.REDIS_CHANNEL[self.md_period]
+        # channel_head = config.REDIS_CHANNEL[self.md_period]
         # channel_list = [channel_head + instrument_id for instrument_id in instrument_id_set]
-        channel_list = [get_channel(Config.MARKET_NAME, self.md_period, instrument_id)
+        channel_list = [get_channel(config.MARKET_NAME, self.md_period, instrument_id)
                         for instrument_id in instrument_id_set]
         if self.pub_sub is not None:  # 在回测模式下有可能不进行 connect 调用以及 subscribe 订阅，因此，没有 pub_sub 实例
             self.pub_sub.punsubscribe(*channel_list)
@@ -173,7 +174,7 @@ class MdAgentRealtime(MdAgentPub):
         return md
 
 
-@register_backtest_md_agent
+@md_agent(RunMode.Backtest, ExchangeName.HuoBi, is_default=False)
 class MdAgentBacktest(MdAgentPub):
 
     def __init__(self, instrument_id_set, md_period: PeriodType, name=None, init_load_md_count=None,

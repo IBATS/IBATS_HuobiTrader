@@ -10,10 +10,11 @@
 from sqlalchemy import Column, Integer, String, UniqueConstraint, TIMESTAMP
 from sqlalchemy.dialects.mysql import DOUBLE
 from sqlalchemy.ext.declarative import declarative_base
-from abat.utils.db_utils import with_db_session
-from backend import engine_md
-from config import Config
+from ibats_common.utils.db import with_db_session
+from ibats_huobi_trader.backend import engine_md
+from ibats_huobi_trader.config import config
 import logging
+
 logger = logging.getLogger()
 BaseModel = declarative_base()
 
@@ -143,7 +144,7 @@ def init(alter_table=False):
     if alter_table:
         with with_db_session(engine=engine_md) as session:
             for table_name, _ in BaseModel.metadata.tables.items():
-                sql_str = f"show table status from {Config.DB_SCHEMA_MD} where name=:table_name"
+                sql_str = f"show table status from {config.DB_SCHEMA_MD} where name=:table_name"
                 row_data = session.execute(sql_str, params={'table_name': table_name}).first()
                 if row_data is None:
                     continue
@@ -151,11 +152,12 @@ def init(alter_table=False):
                     continue
 
                 logger.info('修改 %s 表引擎为 MyISAM', table_name)
-                sql_str = "ALTER TABLE %s ENGINE = MyISAM" % table_name
+                sql_str = f"ALTER TABLE {table_name} ENGINE = MyISAM"
                 session.execute(sql_str)
 
             # This is an issue  https://www.mail-archive.com/sqlalchemy@googlegroups.com/msg19744.html
-            session.execute(f"ALTER TABLE {SymbolPair.__tablename__} CHANGE COLUMN `id` `id` INT(11) NULL AUTO_INCREMENT")
+            session.execute(
+                f"ALTER TABLE {SymbolPair.__tablename__} CHANGE COLUMN `id` `id` INT(11) NULL AUTO_INCREMENT")
             session.commit()
             # This is an issue  https://www.mail-archive.com/sqlalchemy@googlegroups.com/msg19744.html
             session.execute(f"ALTER TABLE {MDTick.__tablename__} CHANGE COLUMN `id` `id` INT(11) NULL AUTO_INCREMENT")
