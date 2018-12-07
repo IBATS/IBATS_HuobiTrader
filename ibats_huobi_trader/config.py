@@ -39,7 +39,7 @@ class ConfigBase(ConBase):
     def __init__(self):
         super().__init__()
         # 设定默认日志格式
-        logging.basicConfig(level=logging.DEBUG, format=config.LOG_FORMAT)
+        logging.basicConfig(level=logging.DEBUG, format=self.LOG_FORMAT)
         # 设置rest调用日志输出级别
         logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.WARNING)
         logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
