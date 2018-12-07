@@ -57,15 +57,15 @@ class MdAgentPub(MdAgentBase):
             # ORDER BY ActionDay DESC, ActionTime DESC %s"""
             with with_db_session(engine_md) as session:
                 query = session.query(
-                    MDMin1.symbol.label('pair'), MDMin1.ts_start.label('ts_start'),
+                    MDMin1.symbol.label('symbol'), MDMin1.ts_start.label('ts_start'),
                     MDMin1.open.label('open'), MDMin1.high.label('high'),
                     MDMin1.low.label('low'), MDMin1.close.label('close'),
                     MDMin1.vol.label('vol'), MDMin1.amount.label('amount'), MDMin1.count.label('count')
                 ).filter(
-                    MDMin1.symbol.in_(self.instrument_id_set)
+                    MDMin1.symbol.in_(self.instrument_id_list)
                 ).order_by(MDMin1.ts_start.desc())
                 # 设置参数
-                params = list(self.instrument_id_set)
+                params = list(self.instrument_id_list)
                 # date_from 起始日期
                 if date_from is None:
                     date_from = self.init_md_date_from
@@ -108,9 +108,9 @@ class MdAgentPub(MdAgentBase):
 @md_agent(RunMode.Realtime, ExchangeName.HuoBi, is_default=False)
 class MdAgentRealtime(MdAgentPub):
 
-    def __init__(self, instrument_id_set, md_period: PeriodType, name=None, init_load_md_count=None,
+    def __init__(self, instrument_id_list, md_period: PeriodType, name=None, init_load_md_count=None,
                  init_md_date_from=None, init_md_date_to=None, **kwargs):
-        super().__init__(instrument_id_set, md_period, name=name, init_load_md_count=init_load_md_count,
+        super().__init__(instrument_id_list, md_period, name=name, init_load_md_count=init_load_md_count,
                          init_md_date_from=init_md_date_from, init_md_date_to=init_md_date_to, **kwargs)
         self.pub_sub = None
         self.md_queue = Queue()
@@ -177,11 +177,14 @@ class MdAgentRealtime(MdAgentPub):
 @md_agent(RunMode.Backtest, ExchangeName.HuoBi, is_default=False)
 class MdAgentBacktest(MdAgentPub):
 
-    def __init__(self, instrument_id_set, md_period: PeriodType, name=None, init_load_md_count=None,
+    def __init__(self, instrument_id_list, md_period: PeriodType, name=None, init_load_md_count=None,
                  init_md_date_from=None, init_md_date_to=None, **kwargs):
-        super().__init__(instrument_id_set, md_period, name=name, init_load_md_count=init_load_md_count,
+        super().__init__(instrument_id_list, md_period, name=name, init_load_md_count=init_load_md_count,
                          init_md_date_from=init_md_date_from, init_md_date_to=init_md_date_to, **kwargs)
         self.timeout = 1
+        self.timestamp_key = 'ts_start'
+        self.symbol_key = 'symbol'
+        self.close_key = 'close'
 
     def connect(self):
         """链接redis、初始化历史数据"""
