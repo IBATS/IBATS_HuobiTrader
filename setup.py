@@ -13,7 +13,7 @@ with open("README.md", "r", encoding='utf-8') as rm:
     long_description = rm.read()
 
 setup(name='IBATS_Huobi_Trader',
-      version='0.1.6',
+      version='0.1.8',
       description='作为IBATS架构的 Trader 端，用于连接Huobi 火币交易所进行相应的交易及账户信息获取等动作',
       long_description=long_description,
       long_description_content_type='text/markdown',
@@ -37,7 +37,7 @@ setup(name='IBATS_Huobi_Trader',
           "Topic :: Software Development",
       ),
       install_requires=[
-          'IBATS_Common',
+          'IBATS_Huobi_Feeder',
           'mysqlclient>=1.3.8',
           'numpy==1.14.4',
           'pandas==0.23.0',
