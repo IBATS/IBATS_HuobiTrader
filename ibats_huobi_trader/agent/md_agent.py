@@ -16,10 +16,16 @@ from ibats_common.common import PeriodType, RunMode, ExchangeName
 from ibats_huobi_trader.backend import engine_md
 from ibats_common.utils.redis import get_channel
 from ibats_huobi_trader.backend import get_redis
-from ibats_huobi_trader.backend.orm import MDMin1
+from ibats_huobi_feeder.backend.orm import MDMin1, MDMin60, MDMinDaily
 from ibats_common.utils.db import with_db_session
 import pandas as pd
 from ibats_huobi_trader.config import config
+
+period_model_dic = {
+    PeriodType.Min1: MDMin1,
+    PeriodType.Hour1: MDMin60,
+    PeriodType.Day1: MDMinDaily,
+}
 
 
 class MdAgentPub(MdAgentBase):
@@ -42,56 +48,59 @@ class MdAgentPub(MdAgentBase):
             ret_data = {'md_df': None, 'datetime_key': 'ts_start'}
             return ret_data
 
-        if self.md_period == PeriodType.Tick:
-            # sql_str = """SELECT * FROM md_tick
-            #             WHERE InstrumentID IN (%s) %s
-            #             ORDER BY ActionDay DESC, ActionTime DESC, ActionMillisec DESC %s"""
-            raise ValueError("暂不支持 tick 级回测")
-        elif self.md_period == PeriodType.Min1:
-            # 将sql 语句形势改成由 sqlalchemy 进行sql 拼装方式
-            # sql_str = """select * from md_min_1
-            #     where InstrumentID in ('j1801') and tradingday>='2017-08-14'
-            #     order by ActionDay, ActionTime, ActionMillisec limit 200"""
-            # sql_str = """SELECT * FROM md_min_1
-            # WHERE InstrumentID IN (%s) %s
-            # ORDER BY ActionDay DESC, ActionTime DESC %s"""
-            with with_db_session(engine_md) as session:
-                query = session.query(
-                    MDMin1.symbol.label('symbol'), MDMin1.ts_start.label('ts_start'),
-                    MDMin1.open.label('open'), MDMin1.high.label('high'),
-                    MDMin1.low.label('low'), MDMin1.close.label('close'),
-                    MDMin1.vol.label('vol'), MDMin1.amount.label('amount'), MDMin1.count.label('count')
-                ).filter(
-                    MDMin1.symbol.in_(self.instrument_id_list)
-                ).order_by(MDMin1.ts_start.desc())
-                # 设置参数
-                params = list(self.instrument_id_list)
-                # date_from 起始日期
-                if date_from is None:
-                    date_from = self.init_md_date_from
-                if date_from is not None:
-                    # qry_str_date_from = " and tradingday>='%s'" % date_from
-                    query = query.filter(MDMin1.ts_start >= date_from)
-                    params.append(date_from)
-                # date_to 截止日期
-                if date_to is None:
-                    date_to = self.init_md_date_to
-                if date_to is not None:
-                    # qry_str_date_to = " and tradingday<='%s'" % date_to
-                    query = query.filter(MDMin1.ts_start <= date_to)
-                    params.append(date_to)
-
-                # load_limit 最大记录数
-                if load_md_count is None:
-                    load_md_count = self.init_load_md_count
-                if load_md_count is not None and load_md_count > 0:
-                    # qry_str_limit = " limit %d" % load_md_count
-                    query = query.limite(load_md_count)
-                    params.append(load_md_count)
-
-                sql_str = str(query)
-        else:
+        if self.md_period not in period_model_dic:
             raise ValueError('%s error' % self.md_period)
+
+        # 将sql 语句形势改成由 sqlalchemy 进行sql 拼装方式
+        # sql_str = """select * from md_min_1
+        #     where InstrumentID in ('j1801') and tradingday>='2017-08-14'
+        #     order by ActionDay, ActionTime, ActionMillisec limit 200"""
+        # sql_str = """SELECT * FROM md_min_1
+        # WHERE InstrumentID IN (%s) %s
+        # ORDER BY ActionDay DESC, ActionTime DESC %s"""
+        with with_db_session(engine_md) as session:
+            sub_query = session.query(
+                MDMin1.symbol.label('symbol'), MDMin1.ts_start.label('ts_start'),
+                MDMin1.open.label('open'), MDMin1.high.label('high'),
+                MDMin1.low.label('low'), MDMin1.close.label('close'),
+                MDMin1.vol.label('vol'), MDMin1.amount.label('amount'), MDMin1.count.label('count')
+            ).filter(
+                MDMin1.symbol.in_(self.instrument_id_list)
+            ).order_by(MDMin1.ts_start.desc())
+            # 设置参数
+            params = list(self.instrument_id_list)
+            # date_from 起始日期
+            if date_from is None:
+                date_from = self.init_md_date_from
+            if date_from is not None:
+                # qry_str_date_from = " and tradingday>='%s'" % date_from
+                sub_query = sub_query.filter(MDMin1.ts_start >= date_from)
+                params.append(date_from)
+            # date_to 截止日期
+            if date_to is None:
+                date_to = self.init_md_date_to
+            if date_to is not None:
+                # qry_str_date_to = " and tradingday<='%s'" % date_to
+                sub_query = sub_query.filter(MDMin1.ts_start <= date_to)
+                params.append(date_to)
+
+            # load_limit 最大记录数
+            if load_md_count is None:
+                load_md_count = self.init_load_md_count
+            if load_md_count is not None and load_md_count > 0:
+                # qry_str_limit = " limit %d" % load_md_count
+                sub_query = sub_query.limite(load_md_count)
+                params.append(load_md_count)
+
+            sub_query = sub_query.subquery('t')
+            query = session.query(
+                sub_query.c.symbol.label('symbol'), sub_query.c.ts_start.label('ts_start'),
+                sub_query.c.open.label('open'), sub_query.c.high.label('high'),
+                sub_query.c.low.label('low'), sub_query.c.close.label('close'),
+                sub_query.c.vol.label('vol'), sub_query.c.amount.label('amount'),
+                sub_query.c.count.label('count')
+            ).order_by(sub_query.c.ts_start)
+            sql_str = str(query)
 
         # 合约列表
         # qry_str_inst_list = "'" + "', '".join(self.instrument_id_set) + "'"
