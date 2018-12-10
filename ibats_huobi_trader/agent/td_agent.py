@@ -14,7 +14,7 @@ from ibats_common.utils.mess import floor
 from ibats_common.trade import TraderAgentBase, trader_agent, BacktestTraderAgentBase
 from huobitrade.service import HBRestAPI
 from ibats_huobi_trader.backend import engine_md
-from ibats_huobi_trader.backend.orm import SymbolPair
+from ibats_huobi_feeder.backend.orm import SymbolPair
 from collections import defaultdict
 from enum import Enum
 
