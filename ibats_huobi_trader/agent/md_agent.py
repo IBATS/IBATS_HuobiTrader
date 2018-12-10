@@ -85,7 +85,7 @@ class MdAgentPub(MdAgentBase):
                 if load_md_count is None:
                     load_md_count = self.init_load_md_count
                 if load_md_count is not None and load_md_count > 0:
-                    qry_str_limit = " limit %d" % load_md_count
+                    # qry_str_limit = " limit %d" % load_md_count
                     query = query.limite(load_md_count)
                     params.append(load_md_count)
 
@@ -99,6 +99,7 @@ class MdAgentPub(MdAgentBase):
         # qry_sql_str = sql_str % (qry_str_inst_list, qry_str_date_from + qry_str_date_to, qry_str_limit)
 
         # 加载历史数据
+        self.logger.debug("%s on:\n%s", params, sql_str)
         md_df = pd.read_sql(sql_str, engine_md, params=params)
         # self.md_df = md_df
         ret_data = {'md_df': md_df, 'datetime_key': 'ts_start', 'symbol_key': 'symbol', 'close_key': 'close'}
